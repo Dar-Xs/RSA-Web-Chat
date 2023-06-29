@@ -2,16 +2,12 @@
 import { RouterView } from 'vue-router'
 import SiteNavigation from './components/SiteNavigation.vue';
 import MessageDemo from './components/MessageDemo.vue';
-import axios from 'axios'
 import { ref, onMounted } from "vue";
 
 const message = ref('');
 
 onMounted(()=>{
-  axios.options("https://rsa.chat.darxs.cn").then((res)=>{
-
-    message.value = JSON.stringify(res.data);
-  });
+  message.value = String(import.meta.env.VITE_API_URL)
 });
 </script>
 
@@ -20,6 +16,6 @@ onMounted(()=>{
     <SiteNavigation />
     <MessageDemo />
     <RouterView />
+    VITE_API_URL: {{ message }}
   </div>
-  {{ message }}
 </template>
