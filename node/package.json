@@ -4,9 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npm run index.js"
+    "start": "node index.js"
   },
-  "keywords": ["RSA","chat"],
+  "keywords": [
+    "RSA",
+    "chat"
+  ],
   "author": "DarXs",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "socket.io": "^4.7.1"
+  }
 }
