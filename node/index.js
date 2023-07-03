@@ -5,7 +5,7 @@ const crypto = require("crypto");
 // 创建 socket.io 实例
 const io = require("socket.io")(server, {
   cors: {
-    origin: "https://rsa.chat.darxs.cn",
+    origin: process.env.ORIGIN,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -61,7 +61,11 @@ io.on("connection", (socket) => {
   socket.on("message", (data) => {
     console.log("Received message:", data);
     // 响应
-    socket.emit("message", "Server received your message.");
+    if(data.message === "ping") {
+      socket.emit("message", "Pong.");
+    } else {
+      socket.emit("message", "Server received your message.");
+    }
   });
 
   // 寻找好友
