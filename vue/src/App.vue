@@ -29,7 +29,7 @@ function handleStart() {
     return;
   }
   // 创建一个websocket
-  webSocket = io(`http://${API_host}:3000`, {
+  webSocket = io(`https://${API_host}:3000`, {
     withCredentials: true,
     extraHeaders: {
       'Access-Control-Allow-Origin': '*',
