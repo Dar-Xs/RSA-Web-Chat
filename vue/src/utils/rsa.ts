@@ -62,6 +62,25 @@ export async function importPrivateKey(pemKey: string): Promise<CryptoKey> {
 
   return key
 }
+export async function importPublicKey(pemKey: string): Promise<CryptoKey> {
+  // 删除 PEM 密钥的头部和尾部，并将其转换为 ArrayBuffer
+  const pemKeyWithoutHeaders = pemKey
+    .replace('-----BEGIN PUBLIC KEY-----', '')
+    .replace('-----END PUBLIC KEY-----', '')
+    .replace(/\s/g, '')
+  const pemKeyBuffer = Uint8Array.from(atob(pemKeyWithoutHeaders), (c) => c.charCodeAt(0)).buffer
+
+  // 将 PEM 密钥转换为 CryptoKey 对象
+  const key = await window.crypto.subtle.importKey(
+    'spki',
+    pemKeyBuffer,
+    { name: 'RSA-OAEP', hash: { name: 'SHA-256' } },
+    true,
+    ['encrypt']
+  )
+
+  return key
+}
 
 // 明文:string        -转换> ArrayBuffer      -加密> 密文:ArrayBuffer -编码> 即将传输base64:string
 // 收到base64:string  -解码> 密文:ArrayBuffer  -解密> ArrayBuffer     -转换>明文:string
@@ -115,16 +134,16 @@ export async function decryptStringRSA(
 
 // ArrayBuffer 加密
 async function encryptRSA(cryptoKey: CryptoKey, data: ArrayBuffer): Promise<ArrayBuffer> {
-  let blockSize: number;
+  let blockSize: number
   if (cryptoKey.algorithm.name === 'RSA-OAEP') {
-    const rsaKeyGenParams = cryptoKey.algorithm as RsaKeyGenParams;
+    const rsaKeyGenParams = cryptoKey.algorithm as RsaKeyGenParams
     blockSize = Math.floor(
       cryptoKey.usages.includes('encrypt')
         ? rsaKeyGenParams.modulusLength / 8 - 42
         : rsaKeyGenParams.modulusLength / 8
-    );
+    )
   } else {
-    throw new Error('Unsupported key algorithm');
+    throw new Error('Unsupported key algorithm')
   }
   const blocks = Math.ceil(data.byteLength / blockSize)
   const encryptedBlocks: ArrayBuffer[] = []
@@ -147,16 +166,16 @@ async function encryptRSA(cryptoKey: CryptoKey, data: ArrayBuffer): Promise<Arra
 }
 // ArrayBuffer 解密
 async function decryptRSA(cryptoKey: CryptoKey, encryptedData: ArrayBuffer): Promise<ArrayBuffer> {
-  let blockSize: number;
+  let blockSize: number
   if (cryptoKey.algorithm.name === 'RSA-OAEP') {
-    const rsaKeyGenParams = cryptoKey.algorithm as RsaKeyGenParams;
+    const rsaKeyGenParams = cryptoKey.algorithm as RsaKeyGenParams
     blockSize = Math.floor(
       cryptoKey.usages.includes('encrypt')
         ? rsaKeyGenParams.modulusLength / 8 - 42
         : rsaKeyGenParams.modulusLength / 8
-    );
+    )
   } else {
-    throw new Error('Unsupported key algorithm');
+    throw new Error('Unsupported key algorithm')
   }
   const blocks = Math.ceil(encryptedData.byteLength / blockSize)
   const decryptedBlocks: ArrayBuffer[] = []
