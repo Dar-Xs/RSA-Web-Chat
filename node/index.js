@@ -1,10 +1,11 @@
 const http = require("http");
 const server = http.createServer();
+const crypto = require("crypto");
 
 // 创建 socket.io 实例
 const io = require("socket.io")(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "https://rsa.chat.darxs.cn",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -26,21 +27,34 @@ io.on("connection", (socket) => {
     socket.emit("login:challenge", { question: question });
   });
   socket.on("login:answer", (data) => {
-    const {publicKey, answer} = data;
+    const { publicKey, answer } = data;
 
-    if(!challengeMap.has(publicKey)) {
-      socket.emit("login:answer", { success: false, message: "Use login, ask for challenge first." });
+    if (!challengeMap.has(publicKey)) {
+      socket.emit("login:answer", {
+        success: false,
+        message: "Use login, ask for challenge first.",
+      });
       return;
     }
     const savedAnswer = challengeMap.get(publicKey);
 
-    if(answer !== savedAnswer) {
-      socket.emit("login:answer", { success: false, message: "Challenge failure." });
+    if (answer !== savedAnswer) {
+      socket.emit("login:answer", {
+        success: false,
+        message: "Challenge failure.",
+      });
       return;
     }
-    onlineMap.set(publicKey, socket); //two way bind
+    challengeMap.delete(publicKey);
+    const hash = crypto.createHash("sha256").update(publicKey).digest("hex");
+    onlineMap.set(hash, socket); //two way bind
+    socket.hash = hash;
     socket.publicKey = publicKey;
-    socket.emit("login:answer", { success: true, message: "Log in success." });
+    socket.emit("login:answer", {
+      success: true,
+      hash: hash,
+      message: "Log in success.",
+    });
   });
 
   // 消息
@@ -50,29 +64,51 @@ io.on("connection", (socket) => {
     socket.emit("message", "Server received your message.");
   });
 
+  // 寻找好友
+  socket.on("find", (data) => {
+    if (!socket.publicKey || !onlineMap.has(socket.hash)) {
+      socket.emit("find", { success: false, message: "Log in first." });
+      return;
+    }
+
+    const { userHash } = data;
+    if (!onlineMap.has(userHash)) {
+      socket.emit("find", { success: false, message: "No such user online." });
+      return;
+    }
+
+    const userKey = onlineMap.get(userHash).publicKey;
+    socket.emit("find", {
+      success: true,
+      publicKey: userKey,
+      message: "User found.",
+    });
+  });
+
   // 发送消息给好友
   socket.on("send", (data) => {
-    if(!socket.publicKey || !onlineMap.has(socket.publicKey)) {
+    if (!socket.publicKey || !onlineMap.has(socket.hash)) {
       socket.emit("send", { success: false, message: "Log in first." });
       return;
     }
 
-    const {receiverKey, message} = data;
-    const serverKey = socket.publicKey;
-    if(!onlineMap.has(receiverKey)) {
-      socket.emit("send", { success: false, message: "Receiver offline." });
+    const { receiverHash, message } = data;
+    const senderHash = socket.hash;
+    if (!onlineMap.has(receiverHash)) {
+      socket.emit("send", { success: false, message: "No such user online." });
       return;
     }
-    const receiver = onlineMap.get(receiverKey);
-    receiver.emit("receive", { sender: serverKey, message: message });
+    const receiver = onlineMap.get(receiverHash);
+    receiver.emit("receive", { sender: senderHash, message: message });
     socket.emit("send", { success: true, message: "Message send." });
   });
 
   // 断开连接
   socket.on("disconnect", () => {
     console.log("A client disconnected.");
-    if(socket.publicKey) {  // remove login status
-      onlineMap.delete(socket.publicKey);
+    if (socket.hash) {
+      // remove login status
+      onlineMap.delete(socket.hash);
     }
   });
 });
@@ -80,3 +116,17 @@ io.on("connection", (socket) => {
 server.listen(3000, () => {
   console.log("WS Server listening on port 3000.");
 });
+
+setInterval(() => {
+  let online = [];
+  for (let key of onlineMap.keys()) {
+    online.push(key.slice(0, 5));
+  }
+  console.log("online: ", online);
+
+  let challenging = [];
+  for (let key of challengeMap.keys()) {
+    challenging.push(key.split("\n")[1].slice(0, 5));
+  }
+  console.log("challenging: ", challenging);
+}, 10000);

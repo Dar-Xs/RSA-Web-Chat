@@ -69,7 +69,7 @@ export async function importPrivateKey(pemKey: string): Promise<CryptoKey> {
 // base64编码
 function base64Encode(data: ArrayBuffer): string {
   const uint8Array = new Uint8Array(data)
-  const base64String = btoa(String.fromCharCode.apply(null, uint8Array))
+  const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)))
   return base64String
 }
 // base64解码
@@ -115,11 +115,17 @@ export async function decryptStringRSA(
 
 // ArrayBuffer 加密
 async function encryptRSA(cryptoKey: CryptoKey, data: ArrayBuffer): Promise<ArrayBuffer> {
-  const blockSize = Math.floor(
-    cryptoKey.usages.includes('encrypt')
-      ? cryptoKey.algorithm.modulusLength / 8 - 42
-      : cryptoKey.algorithm.modulusLength / 8
-  )
+  let blockSize: number;
+  if (cryptoKey.algorithm.name === 'RSA-OAEP') {
+    const rsaKeyGenParams = cryptoKey.algorithm as RsaKeyGenParams;
+    blockSize = Math.floor(
+      cryptoKey.usages.includes('encrypt')
+        ? rsaKeyGenParams.modulusLength / 8 - 42
+        : rsaKeyGenParams.modulusLength / 8
+    );
+  } else {
+    throw new Error('Unsupported key algorithm');
+  }
   const blocks = Math.ceil(data.byteLength / blockSize)
   const encryptedBlocks: ArrayBuffer[] = []
 
@@ -141,12 +147,17 @@ async function encryptRSA(cryptoKey: CryptoKey, data: ArrayBuffer): Promise<Arra
 }
 // ArrayBuffer 解密
 async function decryptRSA(cryptoKey: CryptoKey, encryptedData: ArrayBuffer): Promise<ArrayBuffer> {
-  const blockSize = Math.floor(
-    cryptoKey.usages.includes('decrypt')
-      ? cryptoKey.algorithm.modulusLength / 8
-      : cryptoKey.algorithm.modulusLength / 8 - 42
-  )
-
+  let blockSize: number;
+  if (cryptoKey.algorithm.name === 'RSA-OAEP') {
+    const rsaKeyGenParams = cryptoKey.algorithm as RsaKeyGenParams;
+    blockSize = Math.floor(
+      cryptoKey.usages.includes('encrypt')
+        ? rsaKeyGenParams.modulusLength / 8 - 42
+        : rsaKeyGenParams.modulusLength / 8
+    );
+  } else {
+    throw new Error('Unsupported key algorithm');
+  }
   const blocks = Math.ceil(encryptedData.byteLength / blockSize)
   const decryptedBlocks: ArrayBuffer[] = []
 

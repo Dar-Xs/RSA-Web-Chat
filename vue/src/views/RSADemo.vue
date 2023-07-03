@@ -78,7 +78,7 @@ async function decryptData() {
 </script>
 
 <template>
-  <div class="flex gap-4">
+  <div class="flex gap-4 dark:text-white">
     <button @click="generateKeys">Generate Keys</button>
     <button @click="encryptData">Encrypt Data</button>
     <button @click="decryptData">Decrypt Data</button>
