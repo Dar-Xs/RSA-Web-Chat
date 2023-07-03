@@ -242,7 +242,6 @@ const messages = ref<{
     <div class="h-12 grow-0 shrink-0"></div>
     <div ref="chatView" class="relative grow shrink overflow-auto">
       <div class="my-2 flex flex-col min-h-full dark:bg-zinc-900">
-        <MessageDemo />
         <Message v-for="message in messages" v-bind="message" />
       </div>
     </div>
