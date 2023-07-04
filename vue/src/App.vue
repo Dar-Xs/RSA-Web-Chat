@@ -33,27 +33,22 @@ function handleStart() {
       'Access-Control-Allow-Origin': '*',
     },
   });
-
-  // 监听websocket通讯
-  webSocket.on("message", (message: string) => {
-    // 这是服务端返回的数据
-    console.log(message);
-  })
+  
   // 监听连接关闭
   webSocket.on("close", () => {
-    console.log("Connection closed.");
+    console.info(">>> Closed <<<");
   });
 
   // 监听连接关闭
   webSocket.on("disconnect", () => {
-    console.log("----------------<<disconnect>>");
+    console.info(">>> Disconnect <<<");
 
     privateKeyHash.value = "";
   });
 
   // 连接建立
   webSocket.on("connect", () => {
-    console.log("----------------<<connect>>");
+    console.info(">>> Connect <<<");
     if (publicKey.value === "") {
       generateRSAKeyPairToPEM().then((keyPair) => {
         publicKey.value = keyPair.publicKey;
@@ -71,7 +66,6 @@ function handleStart() {
   webSocket.on("login:challenge", async (data: { question: string }) => {
     const key = await privateCryptoKey.value;
     const ans = await decryptStringRSA(key, data.question);
-    console.log(ans);
     webSocket.emit("login:answer", { publicKey: publicKey.value, answer: ans });
   });
 
@@ -79,7 +73,7 @@ function handleStart() {
     if (data.success) {
       privateKeyHash.value = data.hash;
     }
-    console.log(data.message);
+    console.info(data.message);
   });
 
   webSocket.on("find", (data: { success: boolean, publicKey: string, message: string }) => {
@@ -87,11 +81,11 @@ function handleStart() {
       userKey.value = data.publicKey;
       showConnect.value = false;
     }
-    console.log(data.message);
+    console.info(data.message);
   });
 
   webSocket.on("send", (data: { success: boolean, message: string }) => {
-    console.log(data.message);
+    console.info(data.message);
   });
 
   webSocket.on("receive", async (data: { sender: string, message: string }) => {

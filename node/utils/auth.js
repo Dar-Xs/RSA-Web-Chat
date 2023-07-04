@@ -9,7 +9,7 @@ function generateRandomString(length) {
 }
 
 exports.getChallengePair = (publicKey) => {
-  const data = generateRandomString(64);
+  const data = generateRandomString(128);
   const cryptoKey = crypto.createPublicKey(publicKey);
   const encrypted = crypto.publicEncrypt(
     {

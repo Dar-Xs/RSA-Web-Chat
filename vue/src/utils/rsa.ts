@@ -137,11 +137,7 @@ async function encryptRSA(cryptoKey: CryptoKey, data: ArrayBuffer): Promise<Arra
   let blockSize: number
   if (cryptoKey.algorithm.name === 'RSA-OAEP') {
     const rsaKeyGenParams = cryptoKey.algorithm as RsaKeyGenParams
-    blockSize = Math.floor(
-      cryptoKey.usages.includes('encrypt')
-        ? rsaKeyGenParams.modulusLength / 8 - 42
-        : rsaKeyGenParams.modulusLength / 8
-    )
+    blockSize = Math.floor(rsaKeyGenParams.modulusLength / 8 - 100)
   } else {
     throw new Error('Unsupported key algorithm')
   }
@@ -169,17 +165,13 @@ async function decryptRSA(cryptoKey: CryptoKey, encryptedData: ArrayBuffer): Pro
   let blockSize: number
   if (cryptoKey.algorithm.name === 'RSA-OAEP') {
     const rsaKeyGenParams = cryptoKey.algorithm as RsaKeyGenParams
-    blockSize = Math.floor(
-      cryptoKey.usages.includes('encrypt')
-        ? rsaKeyGenParams.modulusLength / 8 - 42
-        : rsaKeyGenParams.modulusLength / 8
-    )
+    blockSize = Math.floor(rsaKeyGenParams.modulusLength / 8)
   } else {
     throw new Error('Unsupported key algorithm')
   }
   const blocks = Math.ceil(encryptedData.byteLength / blockSize)
   const decryptedBlocks: ArrayBuffer[] = []
-
+  
   for (let i = 0; i < blocks; i++) {
     const blockStart = i * blockSize
     const blockEnd = Math.min(blockStart + blockSize, encryptedData.byteLength)
