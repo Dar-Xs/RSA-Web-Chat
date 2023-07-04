@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "ORIGIN=http://localhost:5173 ENV=development nodemon index.js",
-    "start": "ORIGIN=https://rsa.chat.darxs.cn ENV=production node index.js"
+    "start": "ENV=production node index.js"
   },
   "keywords": [
     "RSA",

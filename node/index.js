@@ -1,11 +1,12 @@
 let server;
 if(process.env.ENV === 'production') {
   const https = require("https");
+  const fs = require("fs");
   const option = {
     key: fs.readFileSync(process.env.KEY_PATH),
     cert: fs.readFileSync(process.env.CERT_PATH)
   }
-  server = https.createServer();
+  server = https.createServer(option);
 } else if(process.env.ENV === 'development') {
   const http = require("http");
   server = http.createServer();

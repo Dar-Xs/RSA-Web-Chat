@@ -16,6 +16,10 @@ const privateCryptoKey = computed(async () => await importPrivateKey(privateKey.
 const logedin = computed(() => privateKeyHash.value != '');
 
 function handleStart() {
+  // 还原状态
+  publicKey.value = localStorage.getItem('publicKey')??"";
+  privateKey.value = localStorage.getItem('privateKey')??"";
+
   // 判断浏览器是否支持websocket
   if (!window.WebSocket) {
     alert("WebSocket not supported");
@@ -53,6 +57,8 @@ function handleStart() {
       generateRSAKeyPairToPEM().then((keyPair) => {
         publicKey.value = keyPair.publicKey;
         privateKey.value = keyPair.privateKey;
+        localStorage.setItem('publicKey', publicKey.value);
+        localStorage.setItem('privateKey', privateKey.value);
         webSocket.emit("login:challenge", { publicKey: publicKey.value });
       });
       return;
