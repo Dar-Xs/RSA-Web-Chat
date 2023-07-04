@@ -9,7 +9,7 @@ function generateRandomString(length) {
 }
 
 exports.getChallengePair = (publicKey) => {
-  const data = generateRandomString(128);
+  const data = generateRandomString(64);
   const cryptoKey = crypto.createPublicKey(publicKey);
   const encrypted = crypto.publicEncrypt(
     {
@@ -19,8 +19,8 @@ exports.getChallengePair = (publicKey) => {
     },
     Buffer.from(data, "utf8")
   );
-  const encryptedBase64 = encrypted.toString("base64");
 
+  const encryptedBase64 = encrypted.toString("base64");
   return {
     question: encryptedBase64,
     answer: data,

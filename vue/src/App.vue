@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import SiteNavigation from './components/SiteNavigation.vue';
-import MessageDemo from './components/MessageDemo.vue';
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import io, { Socket } from "socket.io-client";
 import { generateRSAKeyPairToPEM, importPrivateKey, importPublicKey, decryptStringRSA, encryptStringRSA } from "./utils/rsa";
 import Clipboard from 'clipboard';
@@ -13,15 +12,8 @@ let webSocket: Socket;
 const publicKey = ref("");
 const privateKey = ref("");
 const privateKeyHash = ref("");
-const privateCryptoKey = (() => {
-  let result: CryptoKey;
-  return async () => {
-    if (result == undefined && privateKey.value !== "") {
-      result = await importPrivateKey(privateKey.value);
-    }
-    return result;
-  };
-})();
+const privateCryptoKey = computed(async () => await importPrivateKey(privateKey.value));
+const logedin = computed(() => privateKeyHash.value != '');
 
 function handleStart() {
   // 判断浏览器是否支持websocket
@@ -30,16 +22,11 @@ function handleStart() {
     return;
   }
   // 创建一个websocket
-  webSocket = io(`${API_host}:3000`, {
+  webSocket = io(`${API_host}`, {
     withCredentials: true,
     extraHeaders: {
       'Access-Control-Allow-Origin': '*',
     },
-  });
-
-  // 主动向后台发送数据
-  webSocket.emit("message", {
-    message: "ping",
   });
 
   // 监听websocket通讯
@@ -52,19 +39,33 @@ function handleStart() {
     console.log("Connection closed.");
   });
 
-  generateRSAKeyPairToPEM().then((keyPair) => {
-    publicKey.value = keyPair.publicKey;
-    privateKey.value = keyPair.privateKey;
+  // 监听连接关闭
+  webSocket.on("disconnect", () => {
+    console.log("----------------<<disconnect>>");
+
+    privateKeyHash.value = "";
+  });
+
+  // 连接建立
+  webSocket.on("connect", () => {
+    console.log("----------------<<connect>>");
+    if (publicKey.value === "") {
+      generateRSAKeyPairToPEM().then((keyPair) => {
+        publicKey.value = keyPair.publicKey;
+        privateKey.value = keyPair.privateKey;
+        webSocket.emit("login:challenge", { publicKey: publicKey.value });
+      });
+      return;
+    }
 
     webSocket.emit("login:challenge", { publicKey: publicKey.value });
   });
 
   webSocket.on("login:challenge", async (data: { question: string }) => {
-    const key = await privateCryptoKey();
+    const key = await privateCryptoKey.value;
     const ans = await decryptStringRSA(key, data.question);
     console.log(ans);
     webSocket.emit("login:answer", { publicKey: publicKey.value, answer: ans });
-
   });
 
   webSocket.on("login:answer", (data: { success: boolean, hash: string, message: string }) => {
@@ -77,6 +78,7 @@ function handleStart() {
   webSocket.on("find", (data: { success: boolean, publicKey: string, message: string }) => {
     if (data.success) {
       userKey.value = data.publicKey;
+      showConnect.value = false;
     }
     console.log(data.message);
   });
@@ -87,7 +89,7 @@ function handleStart() {
 
   webSocket.on("receive", async (data: { sender: string, message: string }) => {
     if (data.sender === userHash.value) {
-      const key = await privateCryptoKey();
+      const key = await privateCryptoKey.value;
       const ans = await decryptStringRSA(key, data.message);
       pushMessage(false, ans);
       setTimeout(() => {
@@ -118,6 +120,7 @@ onMounted(() => {
 // 连接其他用户
 const userHash = ref("");
 const userKey = ref("");
+const connected = computed(() => userKey.value !== '');
 const userPublicCryptoKey = (() => {
   let result: CryptoKey;
   return async () => {
@@ -163,8 +166,7 @@ const chatView = ref<HTMLInputElement | null>(null)
 const handleKeyDown = async (event: KeyboardEvent) => {
   if (event.key === 'Enter' && !event.metaKey) {
     event.preventDefault();
-    if (messageValue.value == "") return;
-
+    if (messageValue.value == "" || !connected.value) return;
     const key = await userPublicCryptoKey();
     const message = await encryptStringRSA(key, messageValue.value);
     webSocket.emit("send", {
@@ -217,24 +219,25 @@ const messages = ref<{
   <div class="max-h-screen min-h-screen flex flex-col dark:bg-zinc-900 dark:text-white">
     <div class="fixed top-0 left-0 right-0 z-50">
       <div class="z-50 relative" @click="() => { showConnect = !showConnect }">
-        <SiteNavigation :privateKeyHash="privateKeyHash" v-model:userHash="userHash" @connect="connect" />
+        <SiteNavigation />
       </div>
-      <div
-        :class="[{ '-translate-y-full': !showConnect },
-          'z-40 relative transition ease-in-out backdrop-blur bg-white/80 dark:bg-zinc-900/80 border-b border-slate-900/10']">
+      <div :class="[{ '-translate-y-full': !showConnect }, 'z-40 relative transition ease-in-out backdrop-blur',
+        'bg-white/80 dark:bg-zinc-900/80 border-b border-slate-900/10']">
         <div class="grid grid-cols-4 gap-2 gap-x-0 max-w-2xl mx-auto py-2">
           <div class=" p-2 m-1 justify-self-end">Yours:</div>
-          <p class="col-span-2 self-center m-1 truncate">{{ privateKeyHash == "" ? "loging in" : privateKeyHash }}</p>
-          <button class="rounded-md p-2 m-1 w-auto text-white copy-button bg-sky-600 hover:bg-sky-600/80 active:bg-sky-700
-           dark:bg-sky-700 dark:hover:bg-sky-600 dark:active:bg-sky-500"
-            :data-clipboard-text="privateKeyHash">Copy</button>
+          <p class="col-span-2 self-center m-1 truncate">
+            {{ logedin ? privateKeyHash : "loging in" }}</p>
+          <button :disabled="!logedin" class="rounded-md p-2 m-1 w-auto text-white copy-button bg-sky-600 hover:bg-sky-600/80 disabled:bg-sky-600/80 active:bg-sky-700
+           dark:bg-sky-700 dark:hover:bg-sky-600 dark:active:bg-sky-500" :data-clipboard-text="privateKeyHash">
+            {{ logedin ? "Copy" : "Offline" }}</button>
 
           <div class=" p-2 m-1 w-auto justify-self-end">Friend's:</div>
           <input class="col-span-2 rounded-md border-2 p-2 m-1 dark:bg-zinc-900 dark:border-slate-600" v-model="userHash"
             placeholder="Paste here" />
-          <button @click="connect" :disabled="userKey != ''"
-            :class="['rounded-md p-2 m-1 text-white bg-sky-600 hover:bg-sky-600/80 disabled:bg-sky-600/80 active:bg-sky-700',
-              'dark:bg-sky-700 dark:hover:bg-sky-600 dark:active:bg-sky-500']">{{ userKey == "" ? "Connect" : "Connected" }}</button>
+          <button @click="connect" :class="['rounded-md p-2 m-1 ',
+            'text-white bg-sky-600 hover:bg-sky-600/80 disabled:bg-sky-600/80 active:bg-sky-700',
+            'dark:bg-sky-700 dark:hover:bg-sky-600 dark:active:bg-sky-500']">
+            {{ connected ? "Reconnect" : "Connec" }}</button>
         </div>
       </div>
     </div>
@@ -247,10 +250,10 @@ const messages = ref<{
     </div>
     <div ref="inputRefBg" class="h-12 grow-0 shrink-0"></div>
 
-    <div
-      class="fixed bottom-0 left-0 right-0 flex backdrop-blur z-50 bg-white/95 dark:bg-zinc-900 border-t border-slate-900/10 dark:border-slate-700/70">
-      <textarea ref="inputRef"
-        className="h-10 p-2 m-1 w-full resize-none overflow-hidden placeholder:text-slate-300 dark:bg-zinc-900 dark:placeholder:text-slate-600 outline-0"
+    <div class="fixed bottom-0 left-0 right-0 flex backdrop-blur z-50
+       bg-white/95 dark:bg-zinc-900 border-t border-slate-900/10 dark:border-slate-700/70">
+      <textarea ref="inputRef" className="h-10 p-2 m-1 w-full resize-none overflow-hidden
+         placeholder:text-slate-300 dark:bg-zinc-900 dark:placeholder:text-slate-600 outline-0"
         placeholder="Write a message..." v-model="messageValue" @input="updateHeight" @keydown="handleKeyDown"
         rows='1'></textarea>
     </div>

@@ -185,15 +185,17 @@ async function decryptRSA(cryptoKey: CryptoKey, encryptedData: ArrayBuffer): Pro
     const blockEnd = Math.min(blockStart + blockSize, encryptedData.byteLength)
     const block = encryptedData.slice(blockStart, blockEnd)
 
-    console.log(cryptoKey)
-    console.log(block)
-
+    let decryptedBlock;
     // 这里出错
-    const decryptedBlock = await window.crypto.subtle.decrypt(
-      { name: 'RSA-OAEP' },
-      cryptoKey,
-      block
-    )
+    try {
+      decryptedBlock = await window.crypto.subtle.decrypt(
+        { name: 'RSA-OAEP' },
+        cryptoKey,
+        block
+      )
+    } catch (error) {
+      console.log(error);
+    }
     //
 
     decryptedBlocks.push(decryptedBlock)

@@ -1,5 +1,15 @@
-const http = require("http");
-const server = http.createServer();
+let server;
+if(process.env.ENV === 'production') {
+  const https = require("https");
+  const option = {
+    key: fs.readFileSync(process.env.KEY_PATH),
+    cert: fs.readFileSync(process.env.CERT_PATH)
+  }
+  server = https.createServer();
+} else if(process.env.ENV === 'development') {
+  const http = require("http");
+  server = http.createServer();
+}
 const crypto = require("crypto");
 
 // 创建 socket.io 实例
@@ -130,7 +140,7 @@ setInterval(() => {
 
   let challenging = [];
   for (let key of challengeMap.keys()) {
-    challenging.push(key.split("\n")[1].slice(0, 5));
+    challenging.push(key.split("\n")[2].slice(0, 5));
   }
   console.log("challenging: ", challenging);
 }, 10000);

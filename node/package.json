@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js"
+    "dev": "ORIGIN=http://localhost:5173 ENV=development nodemon index.js",
+    "start": "ORIGIN=https://rsa.chat.darxs.cn ENV=production node index.js"
   },
   "keywords": [
     "RSA",
