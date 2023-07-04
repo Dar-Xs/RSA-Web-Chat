@@ -7,6 +7,7 @@ import Clipboard from 'clipboard';
 import Message from './components/Message.vue';
 
 const API_host = import.meta.env.VITE_API_URL;
+const MAX_MESSAGE_SIZE = 30;
 
 let webSocket: Socket;
 const publicKey = ref("");
@@ -17,8 +18,8 @@ const logedin = computed(() => privateKeyHash.value != '');
 
 function handleStart() {
   // 还原状态
-  publicKey.value = localStorage.getItem('publicKey')??"";
-  privateKey.value = localStorage.getItem('privateKey')??"";
+  publicKey.value = sessionStorage.getItem('publicKey') ?? "";
+  privateKey.value = sessionStorage.getItem('privateKey') ?? "";
 
   // 判断浏览器是否支持websocket
   if (!window.WebSocket) {
@@ -57,8 +58,8 @@ function handleStart() {
       generateRSAKeyPairToPEM().then((keyPair) => {
         publicKey.value = keyPair.publicKey;
         privateKey.value = keyPair.privateKey;
-        localStorage.setItem('publicKey', publicKey.value);
-        localStorage.setItem('privateKey', privateKey.value);
+        sessionStorage.setItem('publicKey', publicKey.value);
+        sessionStorage.setItem('privateKey', privateKey.value);
         webSocket.emit("login:challenge", { publicKey: publicKey.value });
       });
       return;
@@ -209,6 +210,9 @@ const pushMessage = (user: boolean, message: string) => {
     message: message
   });
 
+  while(messages.value.length > MAX_MESSAGE_SIZE){
+    messages.value.shift()
+  }
 };
 
 // 展示消息
@@ -233,7 +237,8 @@ const messages = ref<{
           <div class=" p-2 m-1 justify-self-end">Yours:</div>
           <p class="col-span-2 self-center m-1 truncate">
             {{ logedin ? privateKeyHash : "loging in" }}</p>
-          <button :disabled="!logedin" class="rounded-md p-2 m-1 w-auto text-white copy-button bg-sky-600 hover:bg-sky-600/80 disabled:bg-sky-600/80 active:bg-sky-700
+          <button :disabled="!logedin" class="rounded-md p-2 m-1 w-auto text-white copy-button 
+          bg-sky-600 hover:bg-sky-600/80 disabled:bg-sky-600/80 active:bg-sky-700
            dark:bg-sky-700 dark:hover:bg-sky-600 dark:active:bg-sky-500" :data-clipboard-text="privateKeyHash">
             {{ logedin ? "Copy" : "Offline" }}</button>
 
@@ -243,7 +248,14 @@ const messages = ref<{
           <button @click="connect" :class="['rounded-md p-2 m-1 ',
             'text-white bg-sky-600 hover:bg-sky-600/80 disabled:bg-sky-600/80 active:bg-sky-700',
             'dark:bg-sky-700 dark:hover:bg-sky-600 dark:active:bg-sky-500']">
-            {{ connected ? "Reconnect" : "Connec" }}</button>
+            {{ connected ? "Reconnect" : "Connect" }}</button>
+          <!-- <div class=" p-2 m-1 justify-self-end">Status:</div>
+          <div class=" p-2 m-1 justify-self-center">{{ connected ? "Connected" : "Disconected" }}</div>
+          <div class=" p-2 m-1 justify-self-end">Status:</div>
+          <div class=" p-2 m-1 justify-self-center">{{ connected ? "Connected" : "Disconected" }}</div> -->
+
+          <div class=" col-start-2 p-2 m-1 justify-self-end">Status:</div>
+          <div class=" p-2 m-1 justify-self-center">{{ connected ? "Connected" : "Disconected" }}</div>
         </div>
       </div>
     </div>
